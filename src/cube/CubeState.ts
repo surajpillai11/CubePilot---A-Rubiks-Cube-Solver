@@ -142,11 +142,127 @@ export function isCubeSolved(cube: CubeFaceGrid): boolean {
   return true;
 }
 
+function rot90Face(f: CubeColor[]): CubeColor[] {
+  return [f[6], f[3], f[0], f[7], f[4], f[1], f[8], f[5], f[2]];
+}
+function rot180Face(f: CubeColor[]): CubeColor[] {
+  return rot90Face(rot90Face(f));
+}
+function rot270Face(f: CubeColor[]): CubeColor[] {
+  return rot90Face(rot180Face(f));
+}
+function flipHFace(f: CubeColor[]): CubeColor[] {
+  return [f[2], f[1], f[0], f[5], f[4], f[3], f[8], f[7], f[6]];
+}
+function flipVFace(f: CubeColor[]): CubeColor[] {
+  return [f[6], f[7], f[8], f[3], f[4], f[5], f[0], f[1], f[2]];
+}
+
+// Whole-cube 3D rotations (turn entire cube rigidly)
+export function rotateCubeY(c: CubeFaceGrid): CubeFaceGrid {
+  return {
+    U: rot90Face(c.U),
+    D: rot270Face(c.D),
+    F: c.R,
+    R: c.B,
+    B: c.L,
+    L: c.F,
+  };
+}
+
+export function rotateCubeX(c: CubeFaceGrid): CubeFaceGrid {
+  return {
+    R: rot90Face(c.R),
+    L: rot270Face(c.L),
+    U: c.F,
+    B: rot180Face(c.U),
+    D: rot180Face(c.B),
+    F: c.D,
+  };
+}
+
+export function rotateCubeZ(c: CubeFaceGrid): CubeFaceGrid {
+  return {
+    F: rot90Face(c.F),
+    B: rot270Face(c.B),
+    U: rot90Face(c.L),
+    R: rot90Face(c.U),
+    D: rot90Face(c.R),
+    L: rot90Face(c.D),
+  };
+}
+
+export function getAll24CubeRotations(cube: CubeFaceGrid): CubeFaceGrid[] {
+  const result: CubeFaceGrid[] = [];
+  const visited = new Set<string>();
+  const queue: CubeFaceGrid[] = [cloneCube(cube)];
+  const hash = (c: CubeFaceGrid) => `${c.U[4]}-${c.F[4]}-${c.R[4]}`;
+
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    const key = hash(curr);
+    if (!visited.has(key)) {
+      visited.add(key);
+      result.push(curr);
+      queue.push(rotateCubeX(curr));
+      queue.push(rotateCubeY(curr));
+      queue.push(rotateCubeZ(curr));
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Normalizes any valid solvable cube configuration to standard Western orientation:
+ * Top = White, Front = Green, Right = Red.
+ * This guarantees notation (R, U, F...) matches the 3D visual tutor instructions.
+ */
+export function normalizeToStandardOrientation(cube: CubeFaceGrid): CubeFaceGrid {
+  const all24 = getAll24CubeRotations(cube);
+  for (const c of all24) {
+    if (c.U[4] === 'white' && c.F[4] === 'green' && c.R[4] === 'red') {
+      return c;
+    }
+  }
+  return cube;
+}
+
+const OPPOSITES: Record<CubeColor, CubeColor> = {
+  white: 'yellow', yellow: 'white',
+  green: 'blue', blue: 'green',
+  red: 'orange', orange: 'red',
+  empty: 'empty',
+};
+
+const TOP_FRONT_PAIRS: Array<[CubeColor, CubeColor, CubeColor]> = [
+  ['white', 'green', 'red'], ['white', 'red', 'blue'], ['white', 'blue', 'orange'], ['white', 'orange', 'green'],
+  ['yellow', 'green', 'orange'], ['yellow', 'orange', 'blue'], ['yellow', 'blue', 'red'], ['yellow', 'red', 'green'],
+  ['green', 'white', 'orange'], ['green', 'orange', 'yellow'], ['green', 'yellow', 'red'], ['green', 'red', 'white'],
+  ['blue', 'white', 'red'], ['blue', 'red', 'yellow'], ['blue', 'yellow', 'orange'], ['blue', 'orange', 'white'],
+  ['red', 'white', 'green'], ['red', 'green', 'yellow'], ['red', 'yellow', 'blue'], ['red', 'blue', 'white'],
+  ['orange', 'white', 'blue'], ['orange', 'blue', 'yellow'], ['orange', 'yellow', 'green'], ['orange', 'green', 'white'],
+];
+
+const ALL_24_CENTERS = TOP_FRONT_PAIRS.map(([top, front, right]) => ({
+  U: top, F: front, R: right,
+  L: OPPOSITES[right], B: OPPOSITES[front], D: OPPOSITES[top],
+}));
+
 /**
  * Comprehensive Smart Auto-Fix:
- * Automatically repairs physical errors (corner twist across all 8 corners,
- * edge flips across all 12 edges, permutation parity, candidate 2-sticker swaps,
- * and 1-sticker count typos) so that an entered configuration becomes 100% solvable.
+ * Automatically repairs physical errors:
+ * - 24 3D cube orientations (when user held cube with a different color facing top/front)
+ * - Single face orientation transforms (rot90, rot180, rot270, flipH, flipV across all 6 faces)
+ * - 24 orientations combined with face transforms
+ * - Multi-face orientation transforms (e.g. Back face flipped horizontally AND Down rotated 180)
+ * - Corner twists across all 8 corners
+ * - Edge flips across all 12 edges
+ * - Permutation parity swaps
+ * - Single sticker count typos (excess 1, deficit 1)
+ * - Candidate 2-sticker swaps across non-centers
+ *
+ * Automatically normalizes any repaired cube to standard orientation (White top, Green front).
  */
 export function autoFixCubeParity(cube: CubeFaceGrid): CubeFaceGrid | null {
   const copy = cloneCube(cube);
@@ -176,9 +292,58 @@ export function autoFixCubeParity(cube: CubeFaceGrid): CubeFaceGrid | null {
     }
   };
 
-  if (isSolvable(copy)) return copy;
+  if (isSolvable(copy)) return normalizeToStandardOrientation(copy);
 
-  // 1. Try 8 corner twists
+  const faceKeys: FaceKey[] = ['B', 'D', 'U', 'L', 'R', 'F'];
+  const transforms = [rot90Face, rot180Face, rot270Face, flipHFace, flipVFace];
+
+  // 1. Try 24 center orientations directly (re-anchors centers if user painted from a different perspective)
+  for (const centers of ALL_24_CENTERS) {
+    const candidate = cloneCube(copy);
+    candidate.U[4] = centers.U; candidate.F[4] = centers.F; candidate.R[4] = centers.R;
+    candidate.D[4] = centers.D; candidate.L[4] = centers.L; candidate.B[4] = centers.B;
+    if (isSolvable(candidate)) return normalizeToStandardOrientation(candidate);
+  }
+
+  // 2. Try single face orientation transforms (Back, Down, Up, Left, Right, Front)
+  for (const f of faceKeys) {
+    for (const t of transforms) {
+      const candidate = cloneCube(copy);
+      candidate[f] = t(copy[f]);
+      if (isSolvable(candidate)) return normalizeToStandardOrientation(candidate);
+    }
+  }
+
+  // 3. Try 24 center orientations with single face orientation transforms
+  for (const centers of ALL_24_CENTERS) {
+    for (const f of faceKeys) {
+      for (const t of transforms) {
+        const candidate = cloneCube(copy);
+        candidate.U[4] = centers.U; candidate.F[4] = centers.F; candidate.R[4] = centers.R;
+        candidate.D[4] = centers.D; candidate.L[4] = centers.L; candidate.B[4] = centers.B;
+        candidate[f] = t(candidate[f]);
+        if (isSolvable(candidate)) return normalizeToStandardOrientation(candidate);
+      }
+    }
+  }
+
+  // 4. Try two-face orientation transforms (e.g. Back flipped and Down rotated 180)
+  for (let i = 0; i < faceKeys.length - 1; i++) {
+    for (let j = i + 1; j < faceKeys.length; j++) {
+      const f1 = faceKeys[i];
+      const f2 = faceKeys[j];
+      for (const t1 of transforms) {
+        for (const t2 of transforms) {
+          const candidate = cloneCube(copy);
+          candidate[f1] = t1(copy[f1]);
+          candidate[f2] = t2(copy[f2]);
+          if (isSolvable(candidate)) return normalizeToStandardOrientation(candidate);
+        }
+      }
+    }
+  }
+
+  // 5. Try 8 corner twists
   const corners = [
     [{ f: 'U' as FaceKey, i: 8 }, { f: 'R' as FaceKey, i: 0 }, { f: 'F' as FaceKey, i: 2 }],
     [{ f: 'U' as FaceKey, i: 6 }, { f: 'F' as FaceKey, i: 0 }, { f: 'L' as FaceKey, i: 2 }],
@@ -194,14 +359,14 @@ export function autoFixCubeParity(cube: CubeFaceGrid): CubeFaceGrid | null {
     const t1 = cloneCube(copy);
     const u = t1[c[0].f][c[0].i], r = t1[c[1].f][c[1].i], f = t1[c[2].f][c[2].i];
     t1[c[0].f][c[0].i] = f; t1[c[1].f][c[1].i] = u; t1[c[2].f][c[2].i] = r;
-    if (isSolvable(t1)) return t1;
+    if (isSolvable(t1)) return normalizeToStandardOrientation(t1);
 
     const t2 = cloneCube(copy);
     t2[c[0].f][c[0].i] = r; t2[c[1].f][c[1].i] = f; t2[c[2].f][c[2].i] = u;
-    if (isSolvable(t2)) return t2;
+    if (isSolvable(t2)) return normalizeToStandardOrientation(t2);
   }
 
-  // 2. Try 12 edge flips
+  // 6. Try 12 edge flips
   const edges = [
     [{ f: 'U' as FaceKey, i: 5 }, { f: 'R' as FaceKey, i: 1 }],
     [{ f: 'U' as FaceKey, i: 7 }, { f: 'F' as FaceKey, i: 1 }],
@@ -222,10 +387,10 @@ export function autoFixCubeParity(cube: CubeFaceGrid): CubeFaceGrid | null {
     const tmp = t[e[0].f][e[0].i];
     t[e[0].f][e[0].i] = t[e[1].f][e[1].i];
     t[e[1].f][e[1].i] = tmp;
-    if (isSolvable(t)) return t;
+    if (isSolvable(t)) return normalizeToStandardOrientation(t);
   }
 
-  // 3. Try edge swap parity
+  // 7. Try edge swap parity
   for (let i = 0; i < edges.length - 1; i++) {
     for (let j = i + 1; j < edges.length; j++) {
       const e1 = edges[i];
@@ -237,14 +402,13 @@ export function autoFixCubeParity(cube: CubeFaceGrid): CubeFaceGrid | null {
       t[e1[1].f][e1[1].i] = t[e2[1].f][e2[1].i];
       t[e2[0].f][e2[0].i] = s0;
       t[e2[1].f][e2[1].i] = s1;
-      if (isSolvable(t)) return t;
+      if (isSolvable(t)) return normalizeToStandardOrientation(t);
     }
   }
 
-  // 4. Try resolving single sticker count typo (e.g. 10 yellow, 8 white)
-  const faces: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B'];
+  // 8. Try resolving single sticker count typo (e.g. 10 yellow, 8 white)
   const counts: Record<CubeColor, number> = { white: 0, yellow: 0, red: 0, orange: 0, green: 0, blue: 0, empty: 0 };
-  for (const f of faces) {
+  for (const f of faceKeys) {
     for (let i = 0; i < 9; i++) {
       counts[copy[f][i]]++;
     }
@@ -256,23 +420,23 @@ export function autoFixCubeParity(cube: CubeFaceGrid): CubeFaceGrid | null {
   if (excess.length === 1 && deficit.length === 1) {
     const fromColor = excess[0];
     const toColor = deficit[0];
-    for (const f of faces) {
+    for (const f of faceKeys) {
       for (let i = 0; i < 9; i++) {
         if (i === 4) continue;
         if (copy[f][i] === fromColor) {
           const t = cloneCube(copy);
           t[f][i] = toColor;
-          if (isSolvable(t)) return t;
+          if (isSolvable(t)) return normalizeToStandardOrientation(t);
         }
       }
     }
   }
 
-  // 5. Try candidate non-center 2-sticker swaps if all counts are 9
+  // 9. Try candidate non-center 2-sticker swaps if all counts are 9
   const allCounts9 = Object.entries(counts).every(([c, n]) => c === 'empty' || n === 9);
   if (allCounts9) {
     const nonCenters: Array<{ f: FaceKey; i: number }> = [];
-    for (const f of faces) {
+    for (const f of faceKeys) {
       for (let i = 0; i < 9; i++) {
         if (i !== 4) nonCenters.push({ f, i });
       }
@@ -288,7 +452,7 @@ export function autoFixCubeParity(cube: CubeFaceGrid): CubeFaceGrid | null {
         const tmp = t[p1.f][p1.i];
         t[p1.f][p1.i] = t[p2.f][p2.i];
         t[p2.f][p2.i] = tmp;
-        if (isSolvable(t)) return t;
+        if (isSolvable(t)) return normalizeToStandardOrientation(t);
       }
     }
   }

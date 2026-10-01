@@ -128,6 +128,7 @@ export interface Solution {
   moveCount: number;
   estimatedSolveTimeMs?: number;
   algorithmString: string;
+  repairedCube?: CubeFaceGrid;
 }
 
 export interface SolveRecord {

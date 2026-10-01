@@ -1,7 +1,7 @@
 import React from 'react';
 import { CubeColor, CUBE_COLORS } from '../../types/cube';
 import { useCubeStore } from '../../store/cubeStore';
-import { Check, Sparkles, RefreshCw, Wand2, Eraser, CheckCircle2 } from 'lucide-react';
+import { Check, Eraser, RotateCcw, CheckCircle2, Wand2 } from 'lucide-react';
 
 const COLORS_ORDER: CubeColor[] = ['white', 'yellow', 'red', 'orange', 'green', 'blue'];
 
@@ -11,9 +11,7 @@ export const ColorPalette: React.FC = () => {
     setActiveColor,
     validationResult,
     startBlank,
-    fillSolved,
     fillRemainingAsSolved,
-    autoFillCenters,
     applyScramble,
   } = useCubeStore();
 
@@ -22,29 +20,25 @@ export const ColorPalette: React.FC = () => {
   const filledCount = 54 - emptyCount;
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl">
+    <div className="flex flex-col gap-3 p-3 bg-surface border border-subtle rounded-[6px] transition-colors duration-200 shadow-2xs">
       {/* Header with progress */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Paint Color Palette
-        </span>
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium text-muted">Color palette</span>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-medium text-slate-300">
-            {filledCount}/54 Painted {emptyCount > 0 ? `(${emptyCount} blank)` : '✓ All Filled'}
+          <span className="font-mono text-[11px] text-primary font-medium">
+            {filledCount}/54 filled
           </span>
-          <div className="w-24 bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div className="w-16 bg-surface-hover h-1.5 rounded-[2px] overflow-hidden border border-subtle">
             <div
-              className={`h-full transition-all duration-300 rounded-full ${
-                emptyCount === 0 ? 'bg-emerald-500' : 'bg-blue-500'
-              }`}
+              className="h-full bg-accent transition-all duration-200"
               style={{ width: `${(filledCount / 54) * 100}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Color Swatches with live count badges */}
-      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+      {/* Swatches Grid */}
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
         {COLORS_ORDER.map((color) => {
           const def = CUBE_COLORS[color];
           const count = counts[color] || 0;
@@ -55,111 +49,85 @@ export const ColorPalette: React.FC = () => {
             <button
               key={color}
               onClick={() => setActiveColor(color)}
-              className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all cursor-pointer ${
+              className={`flex flex-col items-center gap-1 p-1.5 rounded-[4px] border transition-all duration-150 cursor-pointer active:scale-92 ${
                 isSelected
-                  ? 'border-blue-400 ring-2 ring-blue-500/30 bg-white/5 scale-[1.03]'
-                  : 'border-white/10 hover:border-white/20 bg-slate-800/40 hover:bg-white/5'
+                  ? 'border-primary bg-surface-hover ring-1 ring-accent/30'
+                  : 'border-subtle hover:border-strong bg-page'
               }`}
             >
               <div
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg shadow-md flex items-center justify-center border border-white/20 transition-transform"
+                className="w-6 h-6 rounded-[2px] border border-black/20 flex items-center justify-center shrink-0 shadow-2xs"
                 style={{ backgroundColor: def.hex }}
               >
                 {isSelected && (
                   <Check
-                    className="w-4 h-4 drop-shadow"
+                    className="w-3.5 h-3.5 drop-shadow-xs"
                     style={{ color: def.textColor }}
                   />
                 )}
               </div>
 
-              <div className="flex flex-col items-center text-center">
-                <span className="text-[11px] font-medium text-slate-200">{def.name}</span>
+              <div className="flex items-center justify-between w-full px-0.5">
+                <span className="text-[10px] text-muted truncate">{def.name}</span>
                 <span
-                  className={`text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full mt-0.5 ${
+                  className={`text-[10px] font-mono font-medium ${
                     isTarget
-                      ? 'text-emerald-400 bg-emerald-500/10'
+                      ? 'text-primary'
                       : count > 9
-                      ? 'text-rose-400 bg-rose-500/10'
-                      : 'text-amber-400 bg-amber-500/10'
+                      ? 'text-red-500 font-semibold'
+                      : 'text-muted'
                   }`}
                 >
-                  {count}/9
+                  {count}
                 </span>
               </div>
             </button>
           );
         })}
 
-        {/* Eraser / Blank Tool */}
+        {/* Eraser Tool */}
         <button
           onClick={() => setActiveColor('empty')}
-          className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all cursor-pointer ${
+          className={`flex flex-col items-center gap-1 p-1.5 rounded-[4px] border transition-all duration-150 cursor-pointer active:scale-92 ${
             activeColor === 'empty'
-              ? 'border-slate-400 ring-2 ring-slate-400/30 bg-white/10 scale-[1.03]'
-              : 'border-white/10 hover:border-white/20 bg-slate-800/40 hover:bg-white/5'
+              ? 'border-primary bg-surface-hover ring-1 ring-accent/30'
+              : 'border-subtle hover:border-strong bg-page'
           }`}
-          title="Click stickers to erase back to blank"
+          title="Erase sticker"
         >
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg shadow-md flex items-center justify-center border border-dashed border-slate-500 bg-slate-800 text-slate-400">
-            <Eraser className="w-4 h-4" />
+          <div className="w-6 h-6 rounded-[2px] border border-dashed border-strong bg-surface flex items-center justify-center text-muted shrink-0">
+            <Eraser className="w-3 h-3" />
           </div>
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[11px] font-medium text-slate-300">Eraser</span>
-            <span className="text-[10px] font-mono text-slate-500 mt-0.5">Blank</span>
-          </div>
+          <span className="text-[10px] text-muted">Erase</span>
         </button>
       </div>
 
-      {/* Helper Action Buttons */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10 text-xs">
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* Utility Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-subtle text-xs">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={startBlank}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 rounded-lg transition-colors font-medium"
-            title="Clear all 48 outer stickers to blank, keeping standard centers"
+            className="flex items-center gap-1 px-2 py-1 bg-surface-hover hover:opacity-85 text-muted hover:text-primary border border-subtle rounded-[4px] transition-colors font-medium text-[11px] cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Clear to Blank</span>
+            <RotateCcw className="w-3 h-3" />
+            <span>Reset to blank</span>
           </button>
 
           <button
-            onClick={autoFillCenters}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-colors font-medium"
-            title="Auto-fill center stickers with standard Western Rubik's scheme"
+            onClick={fillRemainingAsSolved}
+            className="flex items-center gap-1 px-2 py-1 bg-surface-hover hover:opacity-85 text-muted hover:text-primary border border-subtle rounded-[4px] transition-colors font-medium text-[11px] cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Auto-Fill Centers</span>
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Fill remaining</span>
           </button>
-
-          <button
-            onClick={() => applyScramble()}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-colors font-medium cursor-pointer"
-            title="Apply a random valid WCA scramble to test solver immediately"
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            <span>Sample Scramble</span>
-          </button>
-
-          {emptyCount > 0 && emptyCount < 54 && (
-            <button
-              onClick={fillRemainingAsSolved}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 rounded-lg transition-colors font-medium cursor-pointer"
-              title="Auto-fill the remaining blank slots with standard solved colors"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Fill Remaining ({emptyCount})</span>
-            </button>
-          )}
         </div>
 
         <button
-          onClick={fillSolved}
-          className="flex items-center gap-1 px-2.5 py-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-white/10 rounded-lg transition-colors font-medium"
-          title="Fill entire cube with solved colors"
+          onClick={() => applyScramble()}
+          className="flex items-center gap-1 px-2 py-1 bg-surface-hover hover:opacity-85 text-muted hover:text-primary border border-subtle rounded-[4px] transition-colors font-medium text-[11px] cursor-pointer"
         >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>Fill Solved</span>
+          <Wand2 className="w-3 h-3 text-accent" />
+          <span>Sample scramble</span>
         </button>
       </div>
     </div>

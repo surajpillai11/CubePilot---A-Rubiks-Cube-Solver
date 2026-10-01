@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
 import { useCubeStore } from '../store/cubeStore';
-import { useNavigate } from 'react-router-dom';
 import { CubeCanvas } from '../three/CubeCanvas';
 import { parseMoveString } from '../cube/notation';
 import {
-  BookOpen,
-  HelpCircle,
-  Sparkles,
-  ArrowRight,
-  RotateCw,
-  Compass,
   Play,
-  CheckCircle,
+  RotateCcw,
 } from 'lucide-react';
 
 interface AlgorithmItem {
@@ -29,23 +22,23 @@ const ALGORITHMS: AlgorithmItem[] = [
     name: 'The "Sexy Move"',
     moves: "R U R' U'",
     category: 'Trigger',
-    description: 'The fundamental 4-move building block used in countless algorithms.',
-    tips: 'Right side up, top to the left, right side down, top to the right.',
+    description: 'Fundamental 4-move building block used in first-layer insertion and CFOP.',
+    tips: 'Right face up, top face left, right face down, top face right.',
   },
   {
     id: 'reverse_sexy',
     name: 'Reverse Sexy Move',
     moves: "U R U' R'",
     category: 'Trigger',
-    description: 'Used for inserting corner/edge pairs in first and second layers.',
-    tips: 'Top to the left, right side up, top to the right, right side down.',
+    description: 'Used for inserting corner/edge pairs in F2L.',
+    tips: 'Top face left, right face up, top face right, right face down.',
   },
   {
     id: 'sune',
     name: 'Sune (OLL 27)',
     moves: "R U R' U R U2 R'",
     category: 'OLL',
-    description: 'Orientates top yellow corners while preserving bottom two layers.',
+    description: 'Orients top yellow corners while preserving bottom two layers.',
     tips: 'Up, push, down, push, up, push twice, down.',
   },
   {
@@ -54,7 +47,7 @@ const ALGORITHMS: AlgorithmItem[] = [
     moves: "R U2 R' U' R U' R'",
     category: 'OLL',
     description: 'Mirror of the Sune algorithm for opposite corner orientation.',
-    tips: 'Notice the double turn is on the first top turn.',
+    tips: 'Notice the double turn occurs on the first top turn.',
   },
   {
     id: 't_perm',
@@ -62,7 +55,7 @@ const ALGORITHMS: AlgorithmItem[] = [
     moves: "R U R' U' R' F R2 U' R' U' R U R' F'",
     category: 'PLL',
     description: 'Swaps two adjacent corners and two adjacent edges in the last layer.',
-    tips: 'Starts with Sexy Move, then transitions to an F turn and R2.',
+    tips: 'Sexy move sequence transitions into an F turn and R2.',
   },
   {
     id: 'j_perm',
@@ -74,195 +67,138 @@ const ALGORITHMS: AlgorithmItem[] = [
   },
 ];
 
+const NOTATION_REFERENCE = [
+  { move: 'R', name: 'Right', desc: 'Clockwise 90° turn of the right face' },
+  { move: "R'", name: 'Right Prime', desc: 'Counter-clockwise 90° turn of the right face' },
+  { move: 'R2', name: 'Right Double', desc: '180° turn of the right face' },
+  { move: 'U', name: 'Up (Top)', desc: 'Clockwise 90° turn of the top face' },
+  { move: "U'", name: 'Up Prime', desc: 'Counter-clockwise 90° turn of the top face' },
+  { move: 'F', name: 'Front', desc: 'Clockwise 90° turn of the front face' },
+  { move: "F'", name: 'Front Prime', desc: 'Counter-clockwise 90° turn of the front face' },
+  { move: 'L', name: 'Left', desc: 'Clockwise 90° turn of the left face' },
+  { move: 'D', name: 'Down (Bottom)', desc: 'Clockwise 90° turn of the bottom face' },
+  { move: 'B', name: 'Back', desc: 'Clockwise 90° turn of the back face' },
+];
+
 export const Learn: React.FC = () => {
-  const navigate = useNavigate();
-  const { applyManualMove, isAnimating, resetCube } = useCubeStore();
-  const [selectedAlgo, setSelectedAlgo] = useState<AlgorithmItem>(ALGORITHMS[0]);
+  const { applyManualMove, resetCube, isAnimating } = useCubeStore();
+  const [activeAlgo, setActiveAlgo] = useState<AlgorithmItem>(ALGORITHMS[0]);
 
   const handleTestAlgorithm = (algo: AlgorithmItem) => {
-    setSelectedAlgo(algo);
+    setActiveAlgo(algo);
     resetCube();
     const moves = parseMoveString(algo.moves);
-    // Apply moves sequentially with visual delay
     moves.forEach((m, idx) => {
       setTimeout(() => {
         applyManualMove(m);
-      }, idx * 450);
+      }, idx * 400);
     });
   };
 
   return (
-    <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-10">
+    <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 gap-8">
       {/* Header */}
-      <div className="flex flex-col gap-2 border-b border-white/10 pb-5">
-        <div className="flex items-center gap-2 text-xs font-mono text-blue-400 uppercase tracking-widest font-semibold">
-          <BookOpen className="w-3.5 h-3.5" />
-          <span>Interactive Knowledge Base</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-          Learn How to Solve the Rubik's Cube
+      <div className="flex flex-col gap-1 border-b border-subtle pb-4">
+        <h1 className="text-xl sm:text-2xl font-semibold text-primary tracking-tight">
+          Notation & Algorithm Guide
         </h1>
-        <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
-          From cube anatomy and standard Singmaster notation to the Layer-by-Layer (CFOP) method
-          and essential speedcubing algorithms with interactive 3D demonstrations.
+        <p className="text-xs text-muted">
+          Standard Singmaster notation, piece mechanics, and common speedcubing algorithms.
         </p>
       </div>
 
-      {/* Section 1: Cube Anatomy & Notation */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Anatomy & Pieces */}
-        <div className="flex flex-col gap-4 p-6 rounded-3xl bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-xl">
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-blue-400" />
-            <span>The 3 Types of Pieces</span>
-          </h2>
-
-          <div className="flex flex-col gap-3 text-xs text-slate-300">
-            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/5">
-              <span className="font-bold text-blue-400 text-sm block mb-1">
-                1. Centers (6 pieces, 1 color each)
-              </span>
-              <p className="text-slate-400 leading-relaxed">
-                Centers are fixed relative to each other on the internal core. They never change
-                places! The center sticker on each face defines the color of that entire solved face.
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/5">
-              <span className="font-bold text-emerald-400 text-sm block mb-1">
-                2. Edges (12 pieces, 2 colors each)
-              </span>
-              <p className="text-slate-400 leading-relaxed">
-                Edges are located between two centers. An edge piece always has exactly two colors
-                and can only move between edge slots.
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/5">
-              <span className="font-bold text-purple-400 text-sm block mb-1">
-                3. Corners (8 pieces, 3 colors each)
-              </span>
-              <p className="text-slate-400 leading-relaxed">
-                Corners sit at the eight vertices of the cube. Each corner piece has three colors
-                and moves only between corner positions.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Notation Reference */}
-        <div className="flex flex-col gap-4 p-6 rounded-3xl bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-xl">
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <RotateCw className="w-5 h-5 text-indigo-400" />
-            <span>Move Notation Guide</span>
-          </h2>
-
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <span className="font-mono font-bold text-white text-sm">R / L</span>
-              <p className="text-[11px] text-slate-400 mt-1">Right / Left faces 90° clockwise</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <span className="font-mono font-bold text-white text-sm">U / D</span>
-              <p className="text-[11px] text-slate-400 mt-1">Up (Top) / Down (Bottom) faces 90°</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <span className="font-mono font-bold text-white text-sm">F / B</span>
-              <p className="text-[11px] text-slate-400 mt-1">Front / Back faces 90° clockwise</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <span className="font-mono font-bold text-blue-400 text-sm">' (Prime)</span>
-              <p className="text-[11px] text-slate-400 mt-1">Counter-clockwise quarter turn (90°)</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 col-span-2">
-              <span className="font-mono font-bold text-amber-400 text-sm">2 (Double Turn)</span>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Turn that layer 180° (two quarter turns in either direction). Example: <code>R2</code>, <code>U2</code>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 2: Interactive Algorithms Showcase */}
-      <div className="flex flex-col gap-6 p-6 sm:p-8 rounded-3xl bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-mono uppercase tracking-widest text-blue-400 font-bold">
-              Speedcubing & CFOP Essentials
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Algorithm Manual & Notation Table */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          {/* Algorithms Section */}
+          <div className="flex flex-col gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted font-mono">
+              Core Algorithms
             </span>
-            <h2 className="text-2xl font-black text-white tracking-tight mt-0.5">
-              Key Algorithms with Live 3D Execution
-            </h2>
-          </div>
-          <button
-            onClick={() => resetCube()}
-            className="w-fit text-xs font-semibold px-3 py-1.5 rounded-xl border border-white/10 hover:bg-white/5 text-slate-300"
-          >
-            Reset 3D Cube
-          </button>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Algorithm list */}
-          <div className="lg:col-span-6 flex flex-col gap-2.5">
-            {ALGORITHMS.map((algo) => {
-              const isSelected = selectedAlgo.id === algo.id;
-              return (
-                <div
-                  key={algo.id}
-                  onClick={() => setSelectedAlgo(algo)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
-                    isSelected
-                      ? 'bg-blue-600/15 border-blue-500/40 shadow-lg'
-                      : 'bg-slate-950/40 border-white/5 hover:border-white/15'
-                  }`}
-                >
+            <div className="flex flex-col divide-y divide-subtle bg-surface border border-subtle rounded-[6px] shadow-2xs">
+              {ALGORITHMS.map((algo) => (
+                <div key={algo.id} className="p-3.5 flex flex-col gap-2 text-xs">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-sm">{algo.name}</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-white/10 text-slate-300">
+                      <span className="font-semibold text-primary">{algo.name}</span>
+                      <span className="text-[10px] font-mono text-muted bg-page px-1.5 py-0.5 rounded-[3px] border border-subtle">
                         {algo.category}
                       </span>
                     </div>
 
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTestAlgorithm(algo);
-                      }}
+                      onClick={() => handleTestAlgorithm(algo)}
                       disabled={isAnimating}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
-                      title="Run this algorithm on the 3D cube"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-hover hover:opacity-85 text-primary border border-subtle rounded-[4px] text-[11px] font-medium transition-all cursor-pointer disabled:opacity-40 active:scale-95"
                     >
-                      <Play className="w-3 h-3 fill-current" />
-                      <span>Play 3D</span>
+                      <Play className="w-3 h-3 fill-current text-accent" />
+                      <span>Test on 3D cube</span>
                     </button>
                   </div>
 
-                  <div className="font-mono font-bold text-xs text-blue-300 bg-slate-900/80 px-2 py-1 rounded-lg border border-white/5 w-fit">
+                  <span className="font-mono text-xs text-accent bg-page p-2 rounded-[4px] border border-subtle select-all">
                     {algo.moves}
-                  </div>
+                  </span>
 
-                  <p className="text-xs text-slate-400">{algo.description}</p>
+                  <p className="text-muted text-[11px] leading-relaxed">
+                    {algo.description} <span className="text-primary ml-1 font-medium">Tip: {algo.tips}</span>
+                  </p>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
 
-          {/* Interactive 3D Cube Canvas Demonstration */}
-          <div className="lg:col-span-6 flex flex-col items-center">
-            <div className="w-full aspect-square max-w-[420px] rounded-3xl bg-slate-950/80 border border-white/10 p-2 shadow-2xl overflow-hidden">
+          {/* Notation Table */}
+          <div className="flex flex-col gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted font-mono">
+              Singmaster Notation Reference
+            </span>
+
+            <div className="bg-surface border border-subtle rounded-[6px] overflow-hidden text-xs shadow-2xs">
+              <div className="grid grid-cols-12 bg-page p-2.5 font-medium text-muted border-b border-subtle">
+                <span className="col-span-2 font-mono">Move</span>
+                <span className="col-span-4">Face</span>
+                <span className="col-span-6">Action</span>
+              </div>
+              <div className="flex flex-col divide-y divide-subtle">
+                {NOTATION_REFERENCE.map((item) => (
+                  <div key={item.move} className="grid grid-cols-12 p-2.5 text-muted items-center hover:bg-surface-hover/50 transition-colors">
+                    <span className="col-span-2 font-mono font-semibold text-primary">
+                      {item.move}
+                    </span>
+                    <span className="col-span-4 text-primary font-medium">{item.name}</span>
+                    <span className="col-span-6 text-[11px]">{item.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Interactive 3D Model Viewport */}
+        <div className="lg:col-span-5 flex flex-col gap-3 sticky top-16">
+          <div className="flex flex-col bg-surface border border-subtle rounded-[6px] p-3 text-xs shadow-2xs">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-subtle">
+              <span className="font-medium text-primary">Interactive Demo Viewport</span>
+              <button
+                onClick={resetCube}
+                disabled={isAnimating}
+                className="inline-flex items-center gap-1 text-[11px] text-muted hover:text-primary cursor-pointer transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset cube</span>
+              </button>
+            </div>
+
+            <div className="w-full aspect-square bg-page rounded-[4px] border border-subtle overflow-hidden">
               <CubeCanvas autoRotate={false} highlightActiveFace={true} />
             </div>
-            <div className="mt-3 text-center">
-              <p className="text-xs text-slate-400 font-mono">
-                Currently demonstrating: <strong className="text-white">{selectedAlgo.name}</strong>
-              </p>
+
+            <div className="pt-2 mt-2 border-t border-subtle flex flex-col gap-1 text-[11px] text-muted">
+              <span className="font-medium text-primary">Selected algorithm:</span>
+              <span className="font-mono text-accent">{activeAlgo.name} · {activeAlgo.moves}</span>
             </div>
           </div>
         </div>

@@ -39,8 +39,16 @@ function getInitialSolves(): SolveRecord[] {
 function getInitialTheme(): 'dark' | 'light' {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_THEME);
-    if (raw === 'light' || raw === 'dark') return raw;
+    if (raw === 'light' || raw === 'dark') {
+      if (raw === 'light') {
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
+      }
+      return raw;
+    }
   } catch {}
+  document.documentElement.classList.remove('light');
   return 'dark';
 }
 
@@ -363,14 +371,15 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
 
     try {
       const solution = await defaultSolver.solve(cubeState);
+      const effectiveState = solution.repairedCube || cubeState;
 
       // Precalculate cube state at each step:
       // stepStates[0] = initial scrambled state
       // stepStates[1] = after move 0
       // ...
       // stepStates[N] = solved state
-      const states: CubeFaceGrid[] = [cloneCube(cubeState)];
-      let curr = cloneCube(cubeState);
+      const states: CubeFaceGrid[] = [cloneCube(effectiveState)];
+      let curr = cloneCube(effectiveState);
       for (const step of solution.steps) {
         curr = applyMove(curr, step.move);
         states.push(curr);
@@ -382,6 +391,7 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
         currentStepIndex: 0,
         cubeState: states[0],
         initialCubeState: states[0],
+        validationResult: validateCubeState(effectiveState),
         isSolving: false,
         isPlaying: false,
       });

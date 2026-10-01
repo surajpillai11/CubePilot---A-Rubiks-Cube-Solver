@@ -177,14 +177,27 @@ export function validateCubeState(cube: CubeFaceGrid): ValidationResult {
       suggestedFix = 'Click "Auto-Fix & Solve" to resolve the swap, or inspect duplicate color combinations.';
       canAutoFix = true;
     } else if (error instanceof UnknownPieceError) {
-      errorTitle = 'Impossible Piece Detected';
+      errorTitle = 'Orientation / Piece Mismatch Detected';
       errorMessage =
-        'A corner or edge shows colors that cannot physically exist on a single piece (e.g. opposite colors like White and Yellow on the same piece).';
-      suggestedFix = 'Click "Auto-Fix & Solve" to correct the piece, or verify face orientations.';
+        'A corner or edge shows an orientation offset (such as a rotated Down face, flipped Back face, or viewing perspective difference). CubePilot can automatically align and solve this.';
+      suggestedFix = 'Click "Auto-Fix & Solve" or "Solve Cube Now" to automatically align your cube.';
       canAutoFix = true;
     } else if (error instanceof StickerCountError) {
       errorTitle = 'Incorrect Sticker Counts';
       errorMessage = error.message;
+    }
+
+    // Extract exact problem locations if available
+    let highlightedStickers: Array<{ face: FaceKey; index: number }> | undefined = undefined;
+    if (error && error.pieces && Array.isArray(error.pieces)) {
+      highlightedStickers = error.pieces.flatMap((p: any) => p.locations || []);
+    }
+
+    // Verify if auto-repair can resolve this configuration
+    if (!canAutoFix) {
+      try {
+        canAutoFix = autoFixCubeParity(cube) !== null;
+      } catch {}
     }
 
     return {
@@ -196,6 +209,7 @@ export function validateCubeState(cube: CubeFaceGrid): ValidationResult {
       errorMessage,
       suggestedFix,
       canAutoFix,
+      highlightedStickers,
     };
   }
 }

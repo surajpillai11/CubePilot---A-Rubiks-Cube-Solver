@@ -1,15 +1,12 @@
 import React from 'react';
 import { useCubeStore } from '../../store/cubeStore';
 import {
-  CheckCircle2,
-  AlertTriangle,
-  ArrowRight,
-  Loader2,
-  Sparkles,
-  Info,
-  Wand2,
+  Check,
+  AlertCircle,
   Wrench,
+  ArrowRight,
 } from 'lucide-react';
+import { CubeMicroSpinner } from '../common/CubeMicroSpinner';
 import { useNavigate } from 'react-router-dom';
 
 interface ValidationStatusProps {
@@ -23,8 +20,6 @@ export const ValidationStatus: React.FC<ValidationStatusProps> = ({ onSolveSucce
     solverError,
     solveCube,
     autoFix,
-    applyScramble,
-    fillRemainingAsSolved,
   } = useCubeStore();
   const navigate = useNavigate();
 
@@ -40,10 +35,12 @@ export const ValidationStatus: React.FC<ValidationStatusProps> = ({ onSolveSucce
   };
 
   const handleAutoFixAndSolve = async () => {
-    const fixed = autoFix();
-    if (fixed) {
-      const success = await solveCube();
-      if (success) {
+    autoFix();
+    const success = await solveCube();
+    if (success) {
+      if (onSolveSuccess) {
+        onSolveSuccess();
+      } else {
         navigate('/solution');
       }
     }
@@ -52,128 +49,99 @@ export const ValidationStatus: React.FC<ValidationStatusProps> = ({ onSolveSucce
   const { isValid, isComplete, emptyCount, errorTitle, errorMessage, suggestedFix, canAutoFix } =
     validationResult;
 
-  // Case 1: Incomplete (Blank stickers remain)
+  // Incomplete state
   if (!isComplete) {
     return (
-      <div className="p-4 rounded-2xl border border-blue-500/30 bg-blue-950/20 text-blue-200 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
+      <div className="p-3 bg-surface border border-subtle rounded-[6px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs transition-colors duration-200 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-dim shrink-0" />
           <div>
-            <h4 className="text-sm font-semibold tracking-wide text-white">
-              {errorTitle || 'Painting in Progress'}
-            </h4>
-            <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
-              {errorMessage}
-            </p>
-            <p className="text-[11px] text-blue-300/80 font-medium mt-1">
-              💡 {suggestedFix}
-            </p>
+            <span className="font-medium text-primary">
+              {errorTitle || 'Configuration in progress'}
+            </span>
+            <span className="text-muted ml-2 font-mono">
+              ({54 - emptyCount}/54 stickers filled)
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
-          <button
-            onClick={() => fillRemainingAsSolved()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-semibold transition-colors cursor-pointer"
-            title="Auto-fill remaining blank stickers to test solve immediately"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Fill Remaining</span>
-          </button>
-
-          <button
-            onClick={() => applyScramble()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 border border-purple-500/30 text-xs font-semibold transition-colors cursor-pointer"
-            title="Load a valid test scramble instead of painting"
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            <span>Sample Scramble</span>
-          </button>
-
-          <div
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-semibold border border-white/5"
-            title={`${emptyCount} stickers remaining to be painted`}
-          >
-            <span>{emptyCount} Blank</span>
-          </div>
-        </div>
+        <span className="text-muted font-mono text-[11px]">
+          {emptyCount} blank stickers remaining
+        </span>
       </div>
     );
   }
 
-  // Case 2: Complete (All 54 filled)
+  // Complete state
   return (
-    <div
-      className={`p-4 rounded-2xl border transition-all ${
-        isValid
-          ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
-          : 'bg-rose-950/20 border-rose-500/30 text-rose-200'
-      }`}
-    >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {/* Status Message */}
-        <div className="flex items-start gap-3">
-          {isValid ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
-          ) : (
-            <AlertTriangle className="w-5 h-5 text-rose-400 mt-0.5 shrink-0" />
-          )}
+    <div className={`p-3.5 bg-surface border rounded-[6px] flex flex-col gap-3 text-xs transition-all duration-200 shadow-2xs ${
+      isValid ? 'border-accent/40 animate-pulse-subtle' : 'border-subtle'
+    }`}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        {/* Status Text */}
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 shrink-0">
+            {isValid ? (
+              <span className="w-2.5 h-2.5 rounded-full bg-accent inline-block shadow-xs" />
+            ) : (
+              <AlertCircle className="w-3.5 h-3.5 text-muted" />
+            )}
+          </div>
 
-          <div>
-            <h4 className="text-sm font-semibold tracking-wide text-white">
-              {isValid ? 'Configuration Valid & Solvable' : errorTitle || 'Invalid Cube Configuration'}
-            </h4>
-            <p className="text-xs text-slate-300 mt-1 whitespace-pre-line leading-relaxed">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium text-primary">
               {isValid
-                ? 'All 54 stickers and physical pieces are valid. Ready to generate the step-by-step 3D solution.'
+                ? 'Valid cube configuration'
+                : errorTitle || 'Configuration mismatch detected'}
+            </span>
+            <p className="text-muted text-[11px] leading-relaxed max-w-xl">
+              {isValid
+                ? 'All pieces and colors are verified. Ready to generate step-by-step 3D solution.'
                 : errorMessage}
             </p>
             {!isValid && suggestedFix && (
-              <p className="text-xs text-amber-300/90 font-medium mt-1.5 flex items-center gap-1">
-                <span>💡 Tip:</span>
-                <span>{suggestedFix}</span>
-              </p>
+              <span className="text-muted text-[11px] mt-0.5">
+                {suggestedFix}
+              </span>
             )}
             {solverError && (
-              <p className="text-xs text-rose-400 font-medium mt-2 bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+              <span className="text-red-500 text-[11px] mt-1 font-mono">
                 {solverError}
-              </p>
+              </span>
             )}
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
           {!isValid && (
             <button
               onClick={handleAutoFixAndSolve}
               disabled={isSolving}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer shadow-amber-900/30 active:scale-95"
-              title="Automatically fix physical discrepancies or swaps and solve"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-surface-hover hover:opacity-85 text-primary border border-subtle rounded-[6px] font-medium text-xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              <Wrench className="w-3.5 h-3.5" />
-              <span>Auto-Fix & Solve</span>
+              {isSolving ? (
+                <CubeMicroSpinner isSolving={true} size={14} className="text-primary" />
+              ) : (
+                <Wrench className="w-3.5 h-3.5 text-muted" />
+              )}
+              <span>Auto-fix & solve</span>
             </button>
           )}
 
           <button
             onClick={handleSolve}
-            disabled={!isValid || isSolving}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs tracking-wide shadow-lg transition-all cursor-pointer ${
-              isValid && !isSolving
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500 hover:shadow-blue-500/25 shadow-blue-900/30 active:scale-95'
-                : 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
-            }`}
+            disabled={isSolving}
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-accent hover:opacity-90 text-white rounded-[6px] font-medium text-xs transition-all cursor-pointer disabled:opacity-50 active:scale-98 shadow-2xs"
           >
             {isSolving ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Analyzing Cube...</span>
+                <CubeMicroSpinner isSolving={true} size={14} className="text-white" />
+                <span>Computing...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
-                <span>Solve Cube Now</span>
+                <span>Solve cube</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}

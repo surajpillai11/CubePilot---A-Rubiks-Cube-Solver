@@ -2,16 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useCubeStore } from '../store/cubeStore';
 import { generateRandomScramble } from '../cube/CubeState';
 import {
-  Timer as TimerIcon,
   RotateCcw,
+  Copy,
+  Check,
 } from 'lucide-react';
-import type { SolveRecord } from '../types/cube';
 
 export const Timer: React.FC = () => {
   const { recordSolve, solveHistory } = useCubeStore();
 
   const [scramble, setScramble] = useState<string>('');
   const [scrambleMoves, setScrambleMoves] = useState<string[]>([]);
+  const [copied, setCopied] = useState<boolean>(false);
 
   // Timer states: 'idle' | 'holding' | 'ready' | 'running' | 'stopped'
   const [timerState, setTimerState] = useState<'idle' | 'holding' | 'ready' | 'running' | 'stopped'>('idle');
@@ -21,7 +22,6 @@ export const Timer: React.FC = () => {
   const requestRef = useRef<number>(0);
   const holdTimeoutRef = useRef<any>(null);
 
-  // Generate initial scramble
   const newScramble = useCallback(() => {
     const sc = generateRandomScramble(21);
     setScramble(sc.scrambleString);
@@ -32,7 +32,6 @@ export const Timer: React.FC = () => {
     newScramble();
   }, [newScramble]);
 
-  // Frame loop when timer is running
   const updateTimer = () => {
     setElapsedTime(performance.now() - startTimeRef.current);
     requestRef.current = requestAnimationFrame(updateTimer);
@@ -50,12 +49,11 @@ export const Timer: React.FC = () => {
     setElapsedTime(finalTime);
     setTimerState('stopped');
 
-    // Record solve in history
     recordSolve(Math.round(finalTime), scrambleMoves.length, scramble);
     newScramble();
   }, [scrambleMoves, scramble, recordSolve, newScramble]);
 
-  // Keyboard handlers for Spacebar
+  // Spacebar controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code !== 'Space') return;
@@ -67,10 +65,9 @@ export const Timer: React.FC = () => {
       } else if (timerState === 'idle' || timerState === 'stopped') {
         setTimerState('holding');
         if (!holdTimeoutRef.current) {
-          // Hold for 350ms to turn green (Ready)
           holdTimeoutRef.current = setTimeout(() => {
             setTimerState('ready');
-          }, 350);
+          }, 300);
         }
       }
     };
@@ -88,7 +85,6 @@ export const Timer: React.FC = () => {
       if (timerState === 'ready') {
         startTimer();
       } else if (timerState === 'holding') {
-        // Released too early
         setTimerState('idle');
       }
     };
@@ -101,31 +97,6 @@ export const Timer: React.FC = () => {
     };
   }, [timerState, startTimer, stopTimer]);
 
-  // Touch handlers for mobile devices
-  const handleTouchStart = () => {
-    if (timerState === 'running') {
-      stopTimer();
-    } else if (timerState === 'idle' || timerState === 'stopped') {
-      setTimerState('holding');
-      holdTimeoutRef.current = setTimeout(() => {
-        setTimerState('ready');
-      }, 350);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (holdTimeoutRef.current) {
-      clearTimeout(holdTimeoutRef.current);
-      holdTimeoutRef.current = null;
-    }
-    if (timerState === 'ready') {
-      startTimer();
-    } else if (timerState === 'holding') {
-      setTimerState('idle');
-    }
-  };
-
-  // Format milliseconds into 00:24.83
   const formatTime = (ms: number): string => {
     const totalSecs = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSecs / 60);
@@ -138,106 +109,152 @@ export const Timer: React.FC = () => {
       : `${pad(seconds)}.${pad(hundredths)}`;
   };
 
-  // Compute best time & Ao5
-  const bestTime =
-    solveHistory.length > 0 ? Math.min(...solveHistory.map((s: SolveRecord) => s.timeMs)) : null;
+  const handleCopyScramble = () => {
+    navigator.clipboard.writeText(scramble);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
+  const totalCount = solveHistory.length;
+  const bestTime = totalCount > 0 ? Math.min(...solveHistory.map((s) => s.timeMs)) : null;
   const ao5 =
-    solveHistory.length >= 5
-      ? Math.round(
-          solveHistory
-            .slice(0, 5)
-            .reduce((acc: number, curr: SolveRecord) => acc + curr.timeMs, 0) / 5
-        )
+    totalCount >= 5
+      ? Math.round(solveHistory.slice(0, 5).reduce((acc, curr) => acc + curr.timeMs, 0) / 5)
       : null;
 
   return (
-    <div
-      className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 gap-8 select-none"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Header & Scramble Bar */}
-      <div className="flex flex-col gap-3 p-5 rounded-3xl bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-xl">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span className="font-mono uppercase tracking-widest font-semibold flex items-center gap-1.5 text-blue-400">
-            <TimerIcon className="w-3.5 h-3.5" />
-            <span>WCA Official Scramble</span>
-          </span>
-          <button
-            onClick={newScramble}
-            className="flex items-center gap-1 text-slate-300 hover:text-white px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>New Scramble</span>
-          </button>
+    <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 gap-6">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-subtle pb-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-primary tracking-tight">
+            Speed timer
+          </h1>
+          <p className="text-xs text-muted mt-0.5">
+            Hold Space to prepare · Release to start · Press any key to stop.
+          </p>
         </div>
 
-        <div className="text-center py-2 px-3 bg-slate-950/60 rounded-2xl border border-white/5 font-mono text-sm sm:text-base font-semibold text-slate-200 tracking-wide leading-relaxed">
-          {scramble}
-        </div>
-      </div>
-
-      {/* Main Big Timer Display Area */}
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[300px] text-center gap-4">
-        <div
-          className={`font-mono font-black text-6xl sm:text-8xl lg:text-9xl tracking-tight transition-colors duration-150 ${
-            timerState === 'ready'
-              ? 'text-emerald-400 scale-105'
-              : timerState === 'holding'
-              ? 'text-rose-400'
-              : timerState === 'running'
-              ? 'text-white'
-              : 'text-slate-100'
-          }`}
+        <button
+          onClick={newScramble}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface hover:bg-surface-hover text-muted hover:text-primary border border-subtle rounded-[6px] text-xs font-medium transition-colors cursor-pointer"
         >
-          {formatTime(elapsedTime)}
-        </div>
-
-        {/* Guidance Prompt */}
-        <div className="text-xs sm:text-sm font-medium tracking-wide">
-          {timerState === 'idle' || timerState === 'stopped' ? (
-            <span className="text-slate-400">
-              Hold <kbd className="px-2 py-1 bg-slate-800 border border-white/10 rounded font-mono text-slate-200">Space</kbd> or touch screen to ready
-            </span>
-          ) : timerState === 'holding' ? (
-            <span className="text-rose-400 animate-pulse">Wait for green...</span>
-          ) : timerState === 'ready' ? (
-            <span className="text-emerald-400 font-bold">Release to start timing!</span>
-          ) : (
-            <span className="text-blue-400 font-semibold">Timing... Tap space to stop</span>
-          )}
-        </div>
+          <RotateCcw className="w-3 h-3" />
+          <span>New scramble</span>
+        </button>
       </div>
 
-      {/* Stats Cards: Best Time, Ao5, Last TPS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="flex flex-col p-4 rounded-2xl bg-slate-900/40 border border-white/10">
-          <span className="text-[11px] text-slate-400 font-mono uppercase">Personal Best</span>
-          <span className="text-lg font-bold font-mono text-white mt-1">
-            {bestTime ? formatTime(bestTime) : '—'}
-          </span>
+      {/* Main Grid: Left is Timer Workspace, Right is Stats Sidebar */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Timer & Scramble */}
+        <div className="lg:col-span-8 flex flex-col gap-4">
+          {/* Scramble Display Box */}
+          <div className="flex items-center justify-between p-3.5 bg-surface border border-subtle rounded-[6px] shadow-2xs">
+            <span className="font-mono text-sm sm:text-base text-primary tracking-wider select-all font-medium">
+              {scramble}
+            </span>
+            <button
+              onClick={handleCopyScramble}
+              className="p-1.5 text-muted hover:text-primary hover:bg-surface-hover rounded-[4px] border border-subtle transition-colors ml-3 cursor-pointer shrink-0"
+              title="Copy scramble"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-accent" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {/* Large Clean Timer Viewport with hold charge effect */}
+          <div
+            className={`w-full min-h-[300px] sm:min-h-[360px] bg-surface border rounded-[6px] flex flex-col items-center justify-center p-6 select-none transition-all duration-200 shadow-2xs relative overflow-hidden ${
+              timerState === 'ready'
+                ? 'border-accent shadow-md shadow-accent/10 ring-2 ring-accent/20'
+                : timerState === 'holding'
+                ? 'border-amber-500/60'
+                : 'border-subtle'
+            }`}
+          >
+            {/* Top hold charge indicator bar */}
+            {timerState === 'holding' && (
+              <div className="absolute top-0 left-0 h-1 bg-amber-500 animate-[width_0.3s_linear_forwards] w-full" />
+            )}
+            {timerState === 'ready' && (
+              <div className="absolute top-0 left-0 h-1 bg-accent w-full" />
+            )}
+
+            <span
+              className={`font-mono font-bold tracking-tight transition-all duration-150 text-6xl sm:text-7xl lg:text-8xl tabular-nums ${
+                timerState === 'ready'
+                  ? 'text-accent scale-105'
+                  : timerState === 'holding'
+                  ? 'text-amber-500'
+                  : timerState === 'running'
+                  ? 'text-primary'
+                  : 'text-primary'
+              }`}
+            >
+              {formatTime(elapsedTime)}
+            </span>
+
+            <span className={`text-xs font-mono mt-4 transition-colors ${
+              timerState === 'ready'
+                ? 'text-accent font-semibold animate-pulse'
+                : timerState === 'holding'
+                ? 'text-amber-500'
+                : 'text-muted'
+            }`}>
+              {timerState === 'running'
+                ? 'Running · Press space to stop'
+                : timerState === 'ready'
+                ? 'READY · Release to start!'
+                : timerState === 'holding'
+                ? 'Hold...'
+                : 'Hold Space to start'}
+            </span>
+          </div>
         </div>
 
-        <div className="flex flex-col p-4 rounded-2xl bg-slate-900/40 border border-white/10">
-          <span className="text-[11px] text-slate-400 font-mono uppercase">Average of 5</span>
-          <span className="text-lg font-bold font-mono text-white mt-1">
-            {ao5 ? formatTime(ao5) : '—'}
-          </span>
-        </div>
+        {/* Right Column: Dense Stats & Solves Table */}
+        <div className="lg:col-span-4 flex flex-col gap-3">
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="p-2.5 bg-surface border border-subtle rounded-[6px] flex flex-col gap-0.5 shadow-2xs">
+              <span className="text-[10px] text-muted uppercase font-mono">Best</span>
+              <span className="font-mono font-semibold text-primary">
+                {bestTime ? formatTime(bestTime) : '—'}
+              </span>
+            </div>
+            <div className="p-2.5 bg-surface border border-subtle rounded-[6px] flex flex-col gap-0.5 shadow-2xs">
+              <span className="text-[10px] text-muted uppercase font-mono">Ao5</span>
+              <span className="font-mono font-semibold text-primary">
+                {ao5 ? formatTime(ao5) : '—'}
+              </span>
+            </div>
+            <div className="p-2.5 bg-surface border border-subtle rounded-[6px] flex flex-col gap-0.5 shadow-2xs">
+              <span className="text-[10px] text-muted uppercase font-mono">Solves</span>
+              <span className="font-mono font-semibold text-primary">{totalCount}</span>
+            </div>
+          </div>
 
-        <div className="flex flex-col p-4 rounded-2xl bg-slate-900/40 border border-white/10">
-          <span className="text-[11px] text-slate-400 font-mono uppercase">Total Solves</span>
-          <span className="text-lg font-bold font-mono text-white mt-1">
-            {solveHistory.length}
-          </span>
-        </div>
-
-        <div className="flex flex-col p-4 rounded-2xl bg-slate-900/40 border border-white/10">
-          <span className="text-[11px] text-slate-400 font-mono uppercase">Last TPS</span>
-          <span className="text-lg font-bold font-mono text-emerald-400 mt-1">
-            {solveHistory[0] ? `${solveHistory[0].tps} tps` : '—'}
-          </span>
+          {/* Recent Solves Table */}
+          <div className="bg-surface border border-subtle rounded-[6px] p-3 flex flex-col gap-2 text-xs shadow-2xs">
+            <span className="font-medium text-primary">Recent Solves</span>
+            {totalCount === 0 ? (
+              <span className="text-xs text-muted py-4 text-center">
+                No solves recorded yet
+              </span>
+            ) : (
+              <div className="flex flex-col divide-y divide-subtle max-h-[300px] overflow-y-auto">
+                {solveHistory.slice(0, 10).map((s, idx) => (
+                  <div key={s.id} className="py-1.5 flex items-center justify-between text-[11px] hover:bg-surface-hover/50 px-1 rounded-[3px] transition-colors">
+                    <span className="text-muted font-mono">#{totalCount - idx}</span>
+                    <span className="font-mono font-medium text-primary">
+                      {formatTime(s.timeMs)}
+                    </span>
+                    <span className="text-muted font-mono">{s.tps} tps</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

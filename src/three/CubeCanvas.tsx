@@ -77,28 +77,28 @@ export const CubeCanvas: React.FC<CubeCanvasProps> = ({
 
       {/* Floating View Controls */}
       {showControls && (
-        <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md border border-white/10 px-2 py-1.5 rounded-xl shadow-lg z-10">
+        <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-surface/90 backdrop-blur-sm border border-subtle p-1 rounded-[6px] shadow-sm z-10">
           <button
             onClick={resetCamera}
-            className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"
+            className="px-2 py-1 text-muted hover:text-primary hover:bg-surface-hover rounded-[4px] transition-colors flex items-center gap-1.5 text-xs font-medium"
             title="Reset Camera View"
             aria-label="Reset Camera View"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset View</span>
+            <RotateCcw className="w-3 h-3" />
+            <span className="hidden sm:inline">Reset view</span>
           </button>
 
           <button
             onClick={() => setAutoRotate(!autoRotate)}
-            className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium ${
+            className={`px-2 py-1 rounded-[4px] transition-colors flex items-center gap-1.5 text-xs font-medium ${
               autoRotate
-                ? 'text-blue-400 bg-blue-500/15'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
+                ? 'text-primary bg-surface-active font-semibold'
+                : 'text-muted hover:text-primary hover:bg-surface-hover'
             }`}
             title={autoRotate ? 'Stop Auto-Rotate' : 'Start Auto-Rotate'}
             aria-label={autoRotate ? 'Stop Auto-Rotate' : 'Start Auto-Rotate'}
           >
-            {autoRotate ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            {autoRotate ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
             <span className="hidden sm:inline">Orbit</span>
           </button>
         </div>

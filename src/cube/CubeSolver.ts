@@ -6,7 +6,7 @@ import {
   solve as solveKociemba,
 } from '@turnwise/cube-solver';
 import { CubeFaceGrid, Solution, SolutionStep, StandardMove } from '../types/cube';
-import { isCubeSolved } from './CubeState';
+import { autoFixCubeParity, isCubeSolved } from './CubeState';
 import { MOVE_EXPLANATIONS, parseMoveString } from './notation';
 
 // Warm up tables in background once module loads
@@ -39,26 +39,46 @@ export class KociembaCubeSolver {
       };
     }
 
-    // 2. Map colors to faces by center assignment
-    const colorToFace: Record<string, any> = {
-      [cube.U[4]]: Faces.U,
-      [cube.R[4]]: Faces.R,
-      [cube.F[4]]: Faces.F,
-      [cube.D[4]]: Faces.D,
-      [cube.L[4]]: Faces.L,
-      [cube.B[4]]: Faces.B,
+    let targetCube = cube;
+    let kCube: any = null;
+    let repaired = false;
+
+    const buildSolverGrid = (c: CubeFaceGrid) => {
+      const colorToFace: Record<string, any> = {
+        [c.U[4]]: Faces.U,
+        [c.R[4]]: Faces.R,
+        [c.F[4]]: Faces.F,
+        [c.D[4]]: Faces.D,
+        [c.L[4]]: Faces.L,
+        [c.B[4]]: Faces.B,
+      };
+
+      return {
+        U: c.U.map((col) => colorToFace[col]),
+        R: c.R.map((col) => colorToFace[col]),
+        F: c.F.map((col) => colorToFace[col]),
+        D: c.D.map((col) => colorToFace[col]),
+        L: c.L.map((col) => colorToFace[col]),
+        B: c.B.map((col) => colorToFace[col]),
+      };
     };
 
-    const solverGrid: any = {
-      U: cube.U.map((c) => colorToFace[c]),
-      R: cube.R.map((c) => colorToFace[c]),
-      F: cube.F.map((c) => colorToFace[c]),
-      D: cube.D.map((c) => colorToFace[c]),
-      L: cube.L.map((c) => colorToFace[c]),
-      B: cube.B.map((c) => colorToFace[c]),
-    };
+    try {
+      const grid = buildSolverGrid(targetCube);
+      kCube = cubeFromFaces(grid as any);
+    } catch (primaryErr) {
+      // Automatic smart repair fallback
+      const fixed = autoFixCubeParity(cube);
+      if (fixed) {
+        targetCube = fixed;
+        repaired = true;
+        const grid = buildSolverGrid(targetCube);
+        kCube = cubeFromFaces(grid as any);
+      } else {
+        throw primaryErr;
+      }
+    }
 
-    const kCube = cubeFromFaces(solverGrid);
     const rawSolutionMoves = solveKociemba(kCube);
     const algorithmString = formatAlgorithm(rawSolutionMoves);
     const moves = parseMoveString(algorithmString);
@@ -80,6 +100,7 @@ export class KociembaCubeSolver {
       moveCount: moves.length,
       estimatedSolveTimeMs: elapsed,
       algorithmString,
+      repairedCube: repaired ? targetCube : undefined,
     };
   }
 }

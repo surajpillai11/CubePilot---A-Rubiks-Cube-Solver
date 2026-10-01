@@ -1,17 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCubeStore } from '../store/cubeStore';
-import {
-  BarChart3,
-  Trophy,
-  Timer,
-  Zap,
-  TrendingUp,
-  Trash2,
-  Play,
-  RotateCcw,
-  Sparkles,
-} from 'lucide-react';
+import { BarChart2, Timer, Trash2 } from 'lucide-react';
 
 export const Statistics: React.FC = () => {
   const { solveHistory, deleteSolve, clearHistory } = useCubeStore();
@@ -63,139 +53,137 @@ export const Statistics: React.FC = () => {
       : null;
 
   return (
-    <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-8">
+    <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-subtle pb-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-blue-400 uppercase tracking-widest font-semibold">
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Performance & Practice Data</span>
+          <div className="text-[11px] font-mono text-muted uppercase tracking-wider">
+            Practice Records
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
-            Solve History & Statistics
+          <h1 className="text-xl sm:text-2xl font-semibold text-primary tracking-tight mt-1">
+            Solve statistics
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Track your solve progression, average times, and speed metrics.
+          <p className="text-xs text-muted mt-0.5">
+            Historical solve logs, averages, and execution speed.
           </p>
         </div>
 
         {totalCount > 0 && (
           <button
             onClick={() => {
-              if (window.confirm('Are you sure you want to clear your solve history?')) {
+              if (window.confirm('Delete all recorded solve history?')) {
                 clearHistory();
               }
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/20 text-rose-400 hover:bg-rose-500/10 text-xs font-medium transition-colors w-fit"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] border border-subtle text-muted hover:text-primary hover:bg-surface-hover text-xs font-medium transition-colors w-fit cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear History</span>
+            <span>Clear history</span>
           </button>
         )}
       </div>
 
       {/* Empty State */}
       {totalCount === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center gap-5 max-w-md mx-auto">
-          <div className="w-16 h-16 rounded-3xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow-xl shadow-blue-500/10">
-            <Timer className="w-8 h-8" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <h3 className="text-xl font-bold text-white tracking-tight">No Solves Recorded Yet</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Complete your first solve with the timer or solver to start generating your personal
-              averages and speedcubing metrics.
+        <div className="flex flex-col items-start justify-center py-16 gap-4 max-w-md border border-subtle bg-surface p-6 rounded-[6px] shadow-2xs">
+          <div className="flex flex-col gap-1.5">
+            <h2 className="text-sm font-semibold text-primary">No solves recorded yet</h2>
+            <p className="text-xs text-muted leading-relaxed">
+              Use the speed timer to record practice solves and build your Ao5 and Ao12 benchmarks.
             </p>
           </div>
           <Link
             to="/timer"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold tracking-wide shadow-lg shadow-blue-600/25 transition-all"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] bg-accent hover:opacity-90 active:scale-98 text-white text-xs font-medium transition-all shadow-xs"
           >
-            <Timer className="w-4 h-4" />
-            <span>Start Practice Timer</span>
+            <Timer className="w-3.5 h-3.5" />
+            <span>Open practice timer</span>
           </Link>
         </div>
       ) : (
         <>
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/10 flex flex-col gap-1">
-              <span className="text-[11px] font-mono uppercase text-slate-400">Total Solves</span>
-              <span className="text-2xl font-black font-mono text-white">{totalCount}</span>
+            <div className="p-3.5 rounded-[6px] bg-surface border border-subtle flex flex-col gap-1 shadow-2xs">
+              <span className="text-[11px] font-mono uppercase text-muted">Solves</span>
+              <span className="text-xl font-semibold font-mono text-primary">{totalCount}</span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/10 flex flex-col gap-1">
-              <span className="text-[11px] font-mono uppercase text-slate-400">Best Time</span>
-              <span className="text-2xl font-black font-mono text-amber-400">
+            <div className="p-3.5 rounded-[6px] bg-surface border border-subtle flex flex-col gap-1 shadow-2xs">
+              <span className="text-[11px] font-mono uppercase text-muted">Best</span>
+              <span className="text-xl font-semibold font-mono text-primary">
                 {bestTime ? formatMs(bestTime) : '—'}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/10 flex flex-col gap-1">
-              <span className="text-[11px] font-mono uppercase text-slate-400">Average Time</span>
-              <span className="text-2xl font-black font-mono text-blue-400">
+            <div className="p-3.5 rounded-[6px] bg-surface border border-subtle flex flex-col gap-1 shadow-2xs">
+              <span className="text-[11px] font-mono uppercase text-muted">Average</span>
+              <span className="text-xl font-semibold font-mono text-primary">
                 {averageTime ? formatMs(averageTime) : '—'}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/10 flex flex-col gap-1">
-              <span className="text-[11px] font-mono uppercase text-slate-400">Average of 5</span>
-              <span className="text-2xl font-black font-mono text-emerald-400">
+            <div className="p-3.5 rounded-[6px] bg-surface border border-subtle flex flex-col gap-1 shadow-2xs">
+              <span className="text-[11px] font-mono uppercase text-muted">Ao5</span>
+              <span className="text-xl font-semibold font-mono text-primary">
                 {ao5 ? formatMs(ao5) : '—'}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/10 flex flex-col gap-1">
-              <span className="text-[11px] font-mono uppercase text-slate-400">Average of 12</span>
-              <span className="text-2xl font-black font-mono text-indigo-400">
+            <div className="p-3.5 rounded-[6px] bg-surface border border-subtle flex flex-col gap-1 shadow-2xs">
+              <span className="text-[11px] font-mono uppercase text-muted">Ao12</span>
+              <span className="text-xl font-semibold font-mono text-primary">
                 {ao12 ? formatMs(ao12) : '—'}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/10 flex flex-col gap-1">
-              <span className="text-[11px] font-mono uppercase text-slate-400">Average TPS</span>
-              <span className="text-2xl font-black font-mono text-cyan-400">
+            <div className="p-3.5 rounded-[6px] bg-surface border border-subtle flex flex-col gap-1 shadow-2xs">
+              <span className="text-[11px] font-mono uppercase text-muted">Average TPS</span>
+              <span className="text-xl font-semibold font-mono text-primary">
                 {averageTps ? `${averageTps}` : '—'}
               </span>
             </div>
           </div>
 
           {/* Solves Table */}
-          <div className="p-6 rounded-3xl bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-xl flex flex-col gap-4 overflow-hidden">
-            <h3 className="text-base font-bold text-white tracking-tight">Recent Solves</h3>
+          <div className="rounded-[6px] bg-surface border border-subtle flex flex-col overflow-hidden shadow-2xs">
+            <div className="px-4 py-3 border-b border-subtle flex items-center justify-between">
+              <span className="text-xs font-semibold text-primary">Recent session solves</span>
+              <span className="text-[11px] font-mono text-muted">{totalCount} total entries</span>
+            </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-white/10 text-slate-400 font-mono text-[11px] uppercase">
-                    <th className="py-2.5 px-3">#</th>
-                    <th className="py-2.5 px-3">Time</th>
-                    <th className="py-2.5 px-3">Scramble Moves</th>
-                    <th className="py-2.5 px-3">TPS</th>
-                    <th className="py-2.5 px-3">Date</th>
-                    <th className="py-2.5 px-3 text-right">Action</th>
+                  <tr className="border-b border-subtle text-muted font-mono text-[11px] uppercase bg-surface-hover/50">
+                    <th className="py-2.5 px-4 font-medium">#</th>
+                    <th className="py-2.5 px-4 font-medium">Time</th>
+                    <th className="py-2.5 px-4 font-medium">Scramble</th>
+                    <th className="py-2.5 px-4 font-medium">TPS</th>
+                    <th className="py-2.5 px-4 font-medium">Timestamp</th>
+                    <th className="py-2.5 px-4 text-right font-medium">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 font-mono">
+                <tbody className="divide-y divide-subtle font-mono">
                   {solveHistory.map((solve, index) => (
-                    <tr key={solve.id} className="hover:bg-white/5 transition-colors">
-                      <td className="py-3 px-3 text-slate-400 font-semibold">
+                    <tr key={solve.id} className="hover:bg-surface-hover/70 transition-colors">
+                      <td className="py-2.5 px-4 text-muted">
                         {totalCount - index}
                       </td>
-                      <td className="py-3 px-3 text-white font-bold text-sm">
+                      <td className="py-2.5 px-4 text-primary font-semibold">
                         {formatMs(solve.timeMs)}
                       </td>
-                      <td className="py-3 px-3 text-slate-300 font-sans truncate max-w-xs" title={solve.scramble}>
+                      <td className="py-2.5 px-4 text-muted font-sans truncate max-w-xs" title={solve.scramble}>
                         {solve.scramble}
                       </td>
-                      <td className="py-3 px-3 text-emerald-400">{solve.tps} tps</td>
-                      <td className="py-3 px-3 text-slate-400 font-sans">
+                      <td className="py-2.5 px-4 text-primary">{solve.tps} tps</td>
+                      <td className="py-2.5 px-4 text-muted font-sans">
                         {new Date(solve.date).toLocaleDateString()} {new Date(solve.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-2.5 px-4 text-right">
                         <button
                           onClick={() => deleteSolve(solve.id)}
-                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          className="p-1 rounded-[4px] text-muted hover:text-red-500 hover:bg-surface-hover transition-colors cursor-pointer"
                           title="Delete Solve"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

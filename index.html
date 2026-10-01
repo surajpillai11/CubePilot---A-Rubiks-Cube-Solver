@@ -1,7 +1,19 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('cubepilot_theme_v1') || localStorage.getItem('cubepilot_theme');
+          if (t === 'light') {
+            document.documentElement.classList.add('light');
+          } else {
+            document.documentElement.classList.remove('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CubePilot — 3D Rubik's Cube Solver & Interactive Tutor</title>
@@ -23,7 +35,7 @@
       rel="stylesheet"
     />
   </head>
-  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-blue-600/30 selection:text-blue-200">
+  <body class="bg-page text-primary antialiased selection:bg-blue-600/20">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
