@@ -1,6 +1,6 @@
 export type FaceKey = 'U' | 'L' | 'F' | 'R' | 'B' | 'D';
 
-export type CubeColor = 'white' | 'yellow' | 'red' | 'orange' | 'green' | 'blue';
+export type CubeColor = 'white' | 'yellow' | 'red' | 'orange' | 'green' | 'blue' | 'empty';
 
 export interface ColorDefinition {
   id: CubeColor;
@@ -60,6 +60,14 @@ export const CUBE_COLORS: Record<CubeColor, ColorDefinition> = {
     borderHex: '#1D4ED8',
     textColor: '#FFFFFF',
   },
+  empty: {
+    id: 'empty',
+    name: 'Blank',
+    face: 'U',
+    hex: '#1e293b',
+    borderHex: '#475569',
+    textColor: '#94A3B8',
+  },
 };
 
 export const DEFAULT_FACE_COLORS: Record<FaceKey, CubeColor> = {
@@ -97,10 +105,13 @@ export interface MoveExplanation {
 
 export interface ValidationResult {
   isValid: boolean;
+  isComplete: boolean;
+  emptyCount: number;
   colorCounts: Record<CubeColor, number>;
   errorMessage?: string;
   errorTitle?: string;
   suggestedFix?: string;
+  canAutoFix?: boolean;
   highlightedStickers?: Array<{ face: FaceKey; index: number }>;
 }
 

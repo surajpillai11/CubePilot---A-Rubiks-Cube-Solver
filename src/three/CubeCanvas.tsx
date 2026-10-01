@@ -8,6 +8,7 @@ import { RotateCcw, Eye, Play, Pause } from 'lucide-react';
 interface CubeCanvasProps {
   autoRotate?: boolean;
   highlightActiveFace?: boolean;
+  interactivePainting?: boolean;
   showControls?: boolean;
   className?: string;
 }
@@ -15,6 +16,7 @@ interface CubeCanvasProps {
 export const CubeCanvas: React.FC<CubeCanvasProps> = ({
   autoRotate: defaultAutoRotate = false,
   highlightActiveFace = true,
+  interactivePainting = false,
   showControls = true,
   className = 'w-full h-full min-h-[360px]',
 }) => {
@@ -47,7 +49,11 @@ export const CubeCanvas: React.FC<CubeCanvasProps> = ({
         <directionalLight position={[0, -10, 0]} intensity={0.3} color="#f8fafc" />
 
         {/* 3D Rubik's Cube */}
-        <RubiksCube autoRotate={autoRotate} highlightActiveFace={highlightActiveFace} />
+        <RubiksCube
+          autoRotate={autoRotate}
+          highlightActiveFace={highlightActiveFace}
+          interactivePainting={interactivePainting}
+        />
 
         {/* Soft Contact Shadow beneath cube */}
         <ContactShadows

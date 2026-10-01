@@ -1,21 +1,22 @@
 import { create } from 'zustand';
-import {
+import type {
   CubeColor,
   CubeFaceGrid,
-  DEFAULT_FACE_COLORS,
   FaceKey,
   Solution,
   SolveRecord,
   StandardMove,
   ValidationResult,
 } from '../types/cube';
+import { DEFAULT_FACE_COLORS } from '../types/cube';
 import {
   applyMove,
   applyMoves,
   cloneCube,
+  createBlankCube,
   createSolvedCube,
+  autoFixCubeParity,
   generateRandomScramble,
-  isCubeSolved,
   PRESET_PATTERNS,
 } from '../cube/CubeState';
 import { validateCubeState } from '../cube/CubeValidator';
@@ -71,6 +72,10 @@ export interface CubeStore {
   setSticker: (face: FaceKey, index: number, color: CubeColor) => void;
   resetFace: (face: FaceKey) => void;
   resetCube: () => void;
+  startBlank: () => void;
+  fillSolved: () => void;
+  fillRemainingAsSolved: () => void;
+  autoFix: () => boolean;
   autoFillCenters: () => void;
   applyScramble: (scrambleString?: string) => void;
   applyPreset: (presetId: string) => void;
@@ -94,7 +99,8 @@ export interface CubeStore {
   clearHistory: () => void;
 }
 
-const initialCube = createSolvedCube();
+// Start with blank cube by default as requested by user
+const initialCube = createBlankCube();
 
 export const useCubeStore = create<CubeStore>((set, get) => ({
   cubeState: initialCube,
@@ -120,7 +126,19 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
   setSticker: (face, index, color) => {
     const { cubeState } = get();
     const updated = cloneCube(cubeState);
-    updated[face][index] = color;
+
+    // Prevent turning center piece empty (centers define face orientation)
+    if (index === 4) {
+      if (color === 'empty') return;
+      updated[face][index] = color;
+    } else {
+      if (updated[face][index] === color) {
+        updated[face][index] = 'empty';
+      } else {
+        updated[face][index] = color;
+      }
+    }
+
     const validation = validateCubeState(updated);
     set({
       cubeState: updated,
@@ -130,6 +148,7 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
       stepStates: [updated],
       currentStepIndex: 0,
       isPlaying: false,
+      solverError: null,
     });
   },
 
@@ -137,7 +156,14 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
     const { cubeState } = get();
     const updated = cloneCube(cubeState);
     const defaultColor = DEFAULT_FACE_COLORS[face];
-    updated[face] = Array(9).fill(defaultColor);
+    // Reset outer face stickers to empty, preserve center
+    for (let i = 0; i < 9; i++) {
+      if (i === 4) {
+        updated[face][i] = defaultColor;
+      } else {
+        updated[face][i] = 'empty';
+      }
+    }
     const validation = validateCubeState(updated);
     set({
       cubeState: updated,
@@ -150,8 +176,9 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
     });
   },
 
+  // Resets to clean blank cube with standard centers
   resetCube: () => {
-    const fresh = createSolvedCube();
+    const fresh = createBlankCube();
     const validation = validateCubeState(fresh);
     set({
       cubeState: fresh,
@@ -163,6 +190,77 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
       isPlaying: false,
       solverError: null,
     });
+  },
+
+  startBlank: () => {
+    const fresh = createBlankCube();
+    const validation = validateCubeState(fresh);
+    set({
+      cubeState: fresh,
+      initialCubeState: fresh,
+      validationResult: validation,
+      solution: null,
+      stepStates: [fresh],
+      currentStepIndex: 0,
+      isPlaying: false,
+      solverError: null,
+    });
+  },
+
+  fillSolved: () => {
+    const solved = createSolvedCube();
+    const validation = validateCubeState(solved);
+    set({
+      cubeState: solved,
+      initialCubeState: solved,
+      validationResult: validation,
+      solution: null,
+      stepStates: [solved],
+      currentStepIndex: 0,
+      isPlaying: false,
+      solverError: null,
+    });
+  },
+
+  fillRemainingAsSolved: () => {
+    const { cubeState } = get();
+    const updated = cloneCube(cubeState);
+    const faces: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B'];
+    for (const f of faces) {
+      const defaultCol = updated[f][4] !== 'empty' ? updated[f][4] : DEFAULT_FACE_COLORS[f];
+      for (let i = 0; i < 9; i++) {
+        if (updated[f][i] === 'empty') {
+          updated[f][i] = defaultCol;
+        }
+      }
+    }
+    const validation = validateCubeState(updated);
+    set({
+      cubeState: updated,
+      initialCubeState: updated,
+      validationResult: validation,
+      solution: null,
+      stepStates: [updated],
+      currentStepIndex: 0,
+      isPlaying: false,
+      solverError: null,
+    });
+  },
+
+  autoFix: () => {
+    const { cubeState } = get();
+    const fixed = autoFixCubeParity(cubeState);
+    if (fixed) {
+      const validation = validateCubeState(fixed);
+      set({
+        cubeState: fixed,
+        initialCubeState: fixed,
+        validationResult: validation,
+        solverError: null,
+      });
+      return true;
+    }
+    return false;
   },
 
   autoFillCenters: () => {
@@ -237,9 +335,27 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
   },
 
   solveCube: async () => {
-    const { cubeState, validationResult } = get();
+    let { cubeState, validationResult } = get();
+
+    if (!validationResult.isComplete) {
+      set({
+        solverError: `Please fill all 54 stickers before solving (${validationResult.emptyCount} blank stickers remaining).`,
+      });
+      return false;
+    }
+
+    // If cube is physically invalid, attempt auto-fix automatically so user is never blocked!
     if (!validationResult.isValid) {
-      set({ solverError: 'Please fix the cube configuration errors before solving.' });
+      const fixed = autoFixCubeParity(cubeState);
+      if (fixed) {
+        cubeState = fixed;
+        validationResult = validateCubeState(fixed);
+        set({ cubeState, initialCubeState: fixed, validationResult });
+      }
+    }
+
+    if (!validationResult.isValid) {
+      set({ solverError: validationResult.errorMessage || 'Please fix the cube configuration errors before solving.' });
       return false;
     }
 

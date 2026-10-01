@@ -9,6 +9,7 @@ import {
   Faces,
 } from '@turnwise/cube-solver';
 import { CubeColor, CubeFaceGrid, FaceKey, ValidationResult } from '../types/cube';
+import { autoFixCubeParity } from './CubeState';
 
 export function countStickers(cube: CubeFaceGrid): Record<CubeColor, number> {
   const counts: Record<CubeColor, number> = {
@@ -18,6 +19,7 @@ export function countStickers(cube: CubeFaceGrid): Record<CubeColor, number> {
     orange: 0,
     green: 0,
     blue: 0,
+    empty: 0,
   };
 
   const faces: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B'];
@@ -35,8 +37,23 @@ export function countStickers(cube: CubeFaceGrid): Record<CubeColor, number> {
 
 export function validateCubeState(cube: CubeFaceGrid): ValidationResult {
   const colorCounts = countStickers(cube);
+  const emptyCount = colorCounts.empty || 0;
 
-  // 1. Verify Center Stickers are 6 unique colors
+  // 1. If cube has unpainted stickers, it is in progress
+  if (emptyCount > 0) {
+    const filledCount = 54 - emptyCount;
+    return {
+      isValid: false,
+      isComplete: false,
+      emptyCount,
+      colorCounts,
+      errorTitle: 'Painting in Progress',
+      errorMessage: `You have painted ${filledCount} of 54 stickers. Please fill the remaining ${emptyCount} blank stickers.`,
+      suggestedFix: 'Select a color from the palette and click the blank (+) stickers on the net.',
+    };
+  }
+
+  // 2. Verify Center Stickers are 6 unique colors
   const centers: Record<FaceKey, CubeColor> = {
     U: cube.U[4],
     D: cube.D[4],
@@ -47,13 +64,15 @@ export function validateCubeState(cube: CubeFaceGrid): ValidationResult {
   };
 
   const uniqueCenterColors = new Set(Object.values(centers));
-  if (uniqueCenterColors.size < 6) {
+  if (uniqueCenterColors.has('empty') || uniqueCenterColors.size < 6) {
     return {
       isValid: false,
+      isComplete: true,
+      emptyCount: 0,
       colorCounts,
       errorTitle: 'Duplicate Center Colors',
       errorMessage:
-        'The center stickers (middle piece of each 3x3 face) define the face colors and must all be 6 distinct colors. Please reset or correct duplicate centers.',
+        'The center stickers (middle piece of each 3x3 face) define the face colors and must all be 6 distinct colors (White, Yellow, Green, Blue, Red, Orange).',
       suggestedFix: 'Click "Auto-Fill Centers" to reset standard center colors.',
       highlightedStickers: [
         { face: 'U', index: 4 },
@@ -66,9 +85,11 @@ export function validateCubeState(cube: CubeFaceGrid): ValidationResult {
     };
   }
 
-  // 2. Verify Sticker Counts (exactly 9 of each color)
+  // 3. Verify Sticker Counts (exactly 9 of each of the 6 colors)
+  const standardColors: CubeColor[] = ['white', 'yellow', 'red', 'orange', 'green', 'blue'];
   const countErrors: string[] = [];
-  for (const [color, count] of Object.entries(colorCounts)) {
+  for (const color of standardColors) {
+    const count = colorCounts[color] || 0;
     if (count !== 9) {
       const diff = count - 9;
       const capColor = color.charAt(0).toUpperCase() + color.slice(1);
@@ -77,16 +98,27 @@ export function validateCubeState(cube: CubeFaceGrid): ValidationResult {
   }
 
   if (countErrors.length > 0) {
+    // Check if smart auto fix can repair 1-sticker count typo
+    let canAutoFix = false;
+    try {
+      canAutoFix = autoFixCubeParity(cube) !== null;
+    } catch {}
+
     return {
       isValid: false,
+      isComplete: true,
+      emptyCount: 0,
       colorCounts,
       errorTitle: 'Incorrect Sticker Counts',
       errorMessage: `Every color must appear exactly 9 times on the cube. Currently:\n• ${countErrors.join('\n• ')}`,
-      suggestedFix: 'Check each face and re-paint the stickers that differ from your real cube.',
+      suggestedFix: canAutoFix
+        ? 'Click "Auto-Fix & Solve" to let CubePilot resolve the typo, or correct sticker counts manually.'
+        : 'Inspect the highlighted stickers and correct the counts so each color has 9 stickers.',
+      canAutoFix,
     };
   }
 
-  // 3. Structural Validity using Kociemba mathematical checks
+  // 4. Structural Validity using Kociemba mathematical checks
   const colorToFace: Record<string, any> = {
     [centers.U]: Faces.U,
     [centers.R]: Faces.R,
@@ -106,54 +138,64 @@ export function validateCubeState(cube: CubeFaceGrid): ValidationResult {
       B: cube.B.map((c) => colorToFace[c]),
     };
 
-    // This will throw if cube has impossible corner twist, edge flip, parity error, etc.
     cubeFromFaces(solverGrid);
 
     return {
       isValid: true,
+      isComplete: true,
+      emptyCount: 0,
       colorCounts,
     };
   } catch (error: any) {
     let errorTitle = 'Invalid Cube Configuration';
     let errorMessage = error.message || 'The entered configuration is physically impossible to solve.';
     let suggestedFix = 'Check your physical cube to ensure stickers are placed accurately.';
+    let canAutoFix = false;
 
     if (error instanceof CornerTwistError) {
       errorTitle = 'Corner Twist Detected';
       errorMessage =
-        'One corner is twisted in place. On a physical Rubik\'s Cube, this only happens if a corner piece was physically rotated by hand.';
-      suggestedFix = 'Double check the 8 corners on your cube. One corner needs its stickers adjusted.';
+        'One corner is twisted in place. On a physical Rubik\'s Cube, this happens if a corner piece was rotated by hand.';
+      suggestedFix = 'Double check the 8 corners on your cube, or click "Auto-Fix & Solve" below.';
+      canAutoFix = true;
     } else if (error instanceof EdgeFlipError) {
       errorTitle = 'Edge Flip Detected';
       errorMessage =
         'A single edge piece is flipped in place. A real Rubik\'s Cube cannot have only one flipped edge.';
-      suggestedFix = 'Inspect the 12 edge pieces (pieces with 2 colors) and verify both sticker sides.';
+      suggestedFix = 'Inspect the 12 edge pieces (pieces with 2 colors), or click "Auto-Fix & Solve" below.';
+      canAutoFix = true;
     } else if (error instanceof ParityError) {
       errorTitle = 'Permutation Parity Error';
       errorMessage =
-        'Two pieces have traded places (parity error). A legal Rubik\'s Cube configuration requires an even number of swaps.';
-      suggestedFix = 'Check if two edge or corner pieces were swapped during sticker entry.';
+        'Two pieces have traded places (parity error). A legal Rubik\'s Cube configuration requires an even number of piece swaps.';
+      suggestedFix = 'Check if two pieces were swapped during sticker entry, or click "Auto-Fix & Solve" below.';
+      canAutoFix = true;
     } else if (error instanceof DuplicatePieceError) {
       errorTitle = 'Duplicate Piece Detected';
       errorMessage =
         'The same physical piece appears in two different locations on the cube.';
-      suggestedFix = 'Check for duplicate color pairs on edges or triplets on corners.';
+      suggestedFix = 'Click "Auto-Fix & Solve" to resolve the swap, or inspect duplicate color combinations.';
+      canAutoFix = true;
     } else if (error instanceof UnknownPieceError) {
       errorTitle = 'Impossible Piece Detected';
       errorMessage =
-        'A corner or edge shows colors that cannot physically exist on a single piece (e.g., opposite colors like White and Yellow on the same piece).';
-      suggestedFix = 'Look for adjacent stickers that share opposite colors (White/Yellow, Green/Blue, Red/Orange).';
+        'A corner or edge shows colors that cannot physically exist on a single piece (e.g. opposite colors like White and Yellow on the same piece).';
+      suggestedFix = 'Click "Auto-Fix & Solve" to correct the piece, or verify face orientations.';
+      canAutoFix = true;
     } else if (error instanceof StickerCountError) {
-      errorTitle = 'Sticker Count Mismatch';
+      errorTitle = 'Incorrect Sticker Counts';
       errorMessage = error.message;
     }
 
     return {
       isValid: false,
+      isComplete: true,
+      emptyCount: 0,
       colorCounts,
       errorTitle,
       errorMessage,
       suggestedFix,
+      canAutoFix,
     };
   }
 }

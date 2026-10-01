@@ -9,6 +9,7 @@ import { FaceKey, StandardMove } from '../types/cube';
 interface RubiksCubeProps {
   autoRotate?: boolean;
   highlightActiveFace?: boolean;
+  interactivePainting?: boolean;
 }
 
 // All 26 cubie coordinates in 3x3 cube
@@ -25,6 +26,7 @@ for (let x = -1; x <= 1; x++) {
 export const RubiksCube: React.FC<RubiksCubeProps> = ({
   autoRotate = false,
   highlightActiveFace = true,
+  interactivePainting = false,
 }) => {
   const {
     cubeState,
@@ -33,7 +35,16 @@ export const RubiksCube: React.FC<RubiksCubeProps> = ({
     setIsAnimating,
     solution,
     currentStepIndex,
+    setSticker,
+    activeColor,
   } = useCubeStore();
+
+  const handleStickerClick = useMemo(() => {
+    if (!interactivePainting) return undefined;
+    return (face: FaceKey, index: number) => {
+      setSticker(face, index, activeColor);
+    };
+  }, [interactivePainting, setSticker, activeColor]);
 
   const wholeCubeRef = useRef<THREE.Group>(null);
   const rotatingPivotRef = useRef<THREE.Group>(null);
@@ -201,6 +212,7 @@ export const RubiksCube: React.FC<RubiksCubeProps> = ({
             z={z}
             cubeState={cubeState}
             isHighlighted={currentMoveToHighlight ? isCubieInLayer([x, y, z], currentMoveToHighlight[0] as FaceKey) : false}
+            onStickerClick={handleStickerClick}
           />
         ))}
       </group>
@@ -215,6 +227,7 @@ export const RubiksCube: React.FC<RubiksCubeProps> = ({
             z={z}
             cubeState={cubeState}
             isHighlighted={true}
+            onStickerClick={handleStickerClick}
           />
         ))}
       </group>

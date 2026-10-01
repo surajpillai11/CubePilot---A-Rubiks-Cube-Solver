@@ -8,20 +8,28 @@ import { useCubeStore } from '../store/cubeStore';
 import { PRESET_PATTERNS } from '../cube/CubeState';
 import {
   Layers,
-  Sparkles,
   Info,
-  Wand2,
-  RotateCcw,
   Palette,
   Eye,
-  CheckCircle2,
+  Wand2,
+  RefreshCw,
 } from 'lucide-react';
 
 export const CubeInput: React.FC = () => {
   const navigate = useNavigate();
-  const { applyPreset, applyScramble, resetCube, autoFillCenters, validationResult } =
-    useCubeStore();
+  const { applyPreset, applyScramble, startBlank, validationResult } = useCubeStore();
   const [activeTab, setActiveTab] = useState<'net' | '3d'>('net');
+
+  // Ensure entering the color input starts blank first by default
+  React.useEffect(() => {
+    // If arriving without explicit 'keep_state' flag and cube is fully painted, start with blank cube
+    const keep = sessionStorage.getItem('cubepilot_keep_state');
+    if (!keep && validationResult.emptyCount === 0) {
+      startBlank();
+    }
+    // Clean up session flag for future visits
+    sessionStorage.removeItem('cubepilot_keep_state');
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-6">
@@ -33,27 +41,49 @@ export const CubeInput: React.FC = () => {
             <span>Step 1: Configuration Input</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
-            Enter Your Rubik's Cube
+            Enter Your Rubik's Cube Colors
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-            Select a color below, then click each sticker on the 2D net to match your physical cube.
-            The live 3D preview and mathematical validator update in real time.
+            The cube starts blank with fixed centers. Select a color below and click each blank
+            slot to match your physical cube.
           </p>
         </div>
 
-        {/* Quick presets picker */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-mono text-slate-400 uppercase mr-1">Presets:</span>
-          {PRESET_PATTERNS.slice(0, 3).map((preset) => (
-            <button
-              key={preset.id}
-              onClick={() => applyPreset(preset.id)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-medium text-slate-300 transition-colors"
-              title={preset.description}
-            >
-              {preset.name}
-            </button>
-          ))}
+        {/* Quick action buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={startBlank}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-white/10 transition-colors"
+            title="Reset all outer stickers to blank"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Start Blank</span>
+          </button>
+
+          <button
+            onClick={() => applyScramble()}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-xs font-semibold text-purple-300 border border-purple-500/30 transition-colors"
+            title="Load a valid test scramble to test solver instantly"
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            <span>Sample Scramble</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Orientation Guidance Alert */}
+      <div className="bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-slate-900/50 border border-blue-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+            <Info className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold text-white block">Physical Cube Orientation:</span>
+            <span className="text-slate-300 leading-relaxed">
+              Hold your cube with <strong>White Center on Top</strong> and{' '}
+              <strong>Green Center facing you</strong>. (Red is on the Right, Orange on the Left, Blue on the Back, Yellow on the Bottom).
+            </span>
+          </div>
         </div>
       </div>
 
@@ -96,7 +126,7 @@ export const CubeInput: React.FC = () => {
               activeTab === '3d' ? 'block' : 'hidden'
             } lg:hidden w-full aspect-square bg-slate-900/40 rounded-3xl border border-white/10 p-2`}
           >
-            <CubeCanvas autoRotate={false} highlightActiveFace={false} />
+            <CubeCanvas autoRotate={false} highlightActiveFace={false} interactivePainting={true} />
           </div>
 
           {/* Live Validation Alert & Solve Button */}
@@ -111,28 +141,28 @@ export const CubeInput: React.FC = () => {
                 <Eye className="w-4 h-4 text-blue-400" />
                 <span>Live 3D Cube Preview</span>
               </span>
-              <span className="text-[11px] text-slate-500 font-mono">Drag to rotate</span>
+              <span className="text-[11px] text-blue-400 font-medium">Click any sticker in 3D to paint!</span>
             </div>
 
             <div className="w-full aspect-square max-h-[380px] rounded-2xl bg-slate-950/60 border border-white/5 overflow-hidden">
-              <CubeCanvas autoRotate={false} highlightActiveFace={false} />
+              <CubeCanvas autoRotate={false} highlightActiveFace={false} interactivePainting={true} />
             </div>
           </div>
 
-          {/* Helpful Tips Card */}
+          {/* Preset Patterns Card */}
           <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/5 flex flex-col gap-2.5 text-xs text-slate-400">
-            <div className="flex items-center gap-1.5 text-slate-200 font-semibold">
-              <Info className="w-4 h-4 text-blue-400" />
-              <span>Standard Orientation Guidance</span>
-            </div>
-            <p className="leading-relaxed">
-              Hold your physical cube with the <strong>White center on top</strong> and the{' '}
-              <strong>Green center facing you</strong>. The Red center is on your right, Orange on
-              your left, Blue on the back, and Yellow on the bottom.
-            </p>
-            <div className="flex items-center gap-2 pt-1 border-t border-white/5 text-[11px] text-slate-400 font-mono">
-              <span>U: White</span> • <span>D: Yellow</span> • <span>F: Green</span> •{' '}
-              <span>R: Red</span> • <span>B: Blue</span> • <span>L: Orange</span>
+            <span className="text-slate-200 font-semibold block">Try Preset Patterns:</span>
+            <div className="grid grid-cols-2 gap-2">
+              {PRESET_PATTERNS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => applyPreset(p.id)}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/80 border border-white/10 text-xs font-medium text-slate-300 text-left transition-colors"
+                >
+                  <span className="font-bold text-white block">{p.name}</span>
+                  <span className="text-[10px] text-slate-400 truncate block">{p.description}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>

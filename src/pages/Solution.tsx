@@ -93,6 +93,7 @@ export const Solution: React.FC = () => {
         <div className="flex items-center gap-2">
           <Link
             to="/input"
+            onClick={() => sessionStorage.setItem('cubepilot_keep_state', '1')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 hover:border-white/20 text-xs font-medium text-slate-300 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
